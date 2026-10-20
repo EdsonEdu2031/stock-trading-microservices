@@ -54,7 +54,7 @@ def criar_cliente(cliente: Cliente):
 def listar_clientes():
     with get_connection() as conn:
         rows = conn.execute(
-            "SELECT nome, saldo FROM clientes"
+            "SELECT id_cliente, nome, saldo FROM clientes"
         ).fetchall()
         return [dict(row) for row in rows]
 
