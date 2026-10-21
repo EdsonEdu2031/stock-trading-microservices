@@ -10,6 +10,15 @@ st.set_page_config(page_title = "Sistema de Venda de ações", layout="wide")
 def titulo(texto, tamanho=14):
     st.markdown(f'<p style="font-size: {tamanho}px; margin: 0;"><b>{texto}</b></p>', unsafe_allow_html=True)
 
+def titulo_centralizado(texto, tamanho):
+    st.markdown(f'<h1 style="text-align: center; font-size: {tamanho}px; margin: 0;">{texto}</h1>', unsafe_allow_html=True,)
+
+@st.dialog("Aviso")
+def aviso(mensagem):
+    st.warning(mensagem)
+    if st.button("Fechar"):
+        st.rerun()
+
 def incrementar(i):
     st.session_state[f"contador_{i}"] += 1
 
@@ -17,15 +26,30 @@ def decrementar(i):
     if st.session_state[f"contador_{i}"] > 0:
         st.session_state[f"contador_{i}"] -= 1
 
-def comprar_acoes(id_carteira, saldo):
+def calcular_total():
     total_compra = 0
-    for ac in acoes:
-        total_compra+= st.session_state[f"contador_{i}"]*acoes[i]
+    for acao in acoes:
+        total_compra += st.session_state[f"contador_{acao}"] * acoes[acao]
+    return round(total_compra, 2)
 
-    if saldo < total_compra:
-        st.error(f"Saldo insuficiente são necessários R${total_compra}")
-    # Terminar de implementar
-    return 0
+def comprar_acoes():
+    total_compra = calcular_total()   
+
+    if st.session_state["saldo"] < total_compra:
+        aviso(f"Saldo insuficiente!")
+    else:
+        for acao in acoes:
+            resposta = requests.post(
+                f"{API_URL}/comprar",
+                json={"id_carteira": st.session_state["id_cliente"], "ticker": acao, "quantidade": acoes[acao]},
+                timeout=10
+            )
+            if resposta.status == 200:
+                st.success(f'Compra de {acoes[acao]} para ação {acao} realizado com sucesso!')
+            else:
+                aviso("Não foi possível realizar a compra.")
+    return
+
 dados = {
     'Ticker': ['Abba', 'Baab'],
     'Quantidade': [5, 2]
@@ -46,14 +70,14 @@ for i in acoes:
     if f"contador_{i}" not in st.session_state:
         st.session_state[f"contador_{i}"] = 0
 
-if "token" not in st.session_state:
-    st.session_state["token"] = None
+if "logado" not in st.session_state:
+    st.session_state["logado"] = None
 
 if "nome" not in st.session_state:
     st.session_state["nome"] = None
-
+st.session_state["saldo"] = 1000.00
 col1, col2, col3 = st.columns(3)
-if st.session_state["token"] is None:
+if st.session_state["logado"] is None:
     with col2:
         opcao = st.radio("Acesso", ["Login", "Cadastro"], horizontal=True)
 
@@ -66,24 +90,25 @@ if st.session_state["token"] is None:
                 enviar = st.form_submit_button("Login")
 
             if enviar:
-                st.session_state["token"] = 'askask'
-                st.session_state["nome"] = 'Tayana'
+                st.session_state["logado"] = True
+                st.session_state["nome"] = 'Edson'
                 st.rerun()
                 try:
                     resposta = requests.post(
                         f"{API_URL}/login",
-                        json={"nome": nome, "senha": senha},
+                        json={"nome": nome.strip(), "senha": senha},
                         timeout=10
                     )
 
-                    if resposta.status_code == 200:
-                        dados = resposta.json()
-                        st.session_state["token"] = dados["access_token"]
-                        st.session_state["nome"] = dados["nome"]
+                    if resposta.status == 200:
+                        st.session_state["logado"] = True
+                        st.session_state["nome"] = resposta.nome
+                        st.session_state["id_cliente"] = resposta.id_cliente
+                        st.session_state["saldo"] = resposta.saldo
                         st.rerun()
 
-                    elif resposta.status_code == 401:
-                        st.error("Nome ou senha inválidos.")
+                    elif resposta.status == 401:
+                        st.error("Nome ou senha inválidos. Tente novamente!")
 
                     else:
                         st.error("Não foi possível realizar o login.")
@@ -102,7 +127,7 @@ if st.session_state["token"] is None:
 
             if cadastrar:
                 if not nome.strip() or not senha:
-                    st.warning("Preencha todos os campos.")
+                    aviso("Preencha todos os campos.")
 
                 elif senha != confirmar_senha:
                     st.error("As senhas não coincidem.")
@@ -110,55 +135,106 @@ if st.session_state["token"] is None:
                 else:
                     try:
                         resposta = requests.post(
-                            f"{API_URL}/clientes",
+                            f"{API_URL}/cadastro",
                             json={
                                 "nome": nome.strip(),
-                                "senha": senha
+                                "senha": senha,
+                                "saldo":1000
                             },
                             timeout=10
                         )
 
-                        if resposta.status_code == 201:
-                            st.success("Cadastro realizado! Agora você pode fazer login.")
-                        elif resposta.status_code == 409:
+                        if resposta.status == 201:
+                            st.success("Cadastro realizado!")
+                            st.session_state["logado"] = True
+                            st.session_state["nome"] = resposta.nome
+                            st.session_state["id_cliente"] = resposta.id_cliente
+                            st.session_state["saldo"] = resposta.saldo
+                            st.rerun()
+
+                        elif resposta.status == 409:
                             st.error("Já existe um cliente com esse nome.")
-                        elif resposta.status_code == 422:
-                            st.error(resposta.json()["detail"])
                         else:
                             st.error("Não foi possível realizar o cadastro.")
 
                     except requests.RequestException:
                         st.error("Não foi possível conectar ao Serviço de Dados.")
 else:
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.title(f"Bem-vindo(a) {st.session_state['nome']}")
-        saldo = 59.99
-        titulo(f'Saldo disponível: {saldo}', 24)
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader('Carteira')
-        st.table(dados)
-    with col2:
-        #st.subheader('Ações disponíveis')
-        #st.table(acoes)
+    titulo_centralizado(f"Bem-vindo(a) {st.session_state['nome']}", 35)
+    option = st.segmented_control('Ferramente para acessar', options=['Carteira', 'Comprar', 'Vender'])
+    
+    col1, col2, col3 = st.columns([1, 3, 1])
 
-        col11, col22, col33, col44 = st.columns([2,1,1,1])
+    if option == 'Carteira':
+        # Mostrando Carteira
+        resposta = requests.get(f"{API_URL}/carteira/{st.session_state['id_cliente']}", timeout=10)
 
-
-        for i in acoes:
-            with col11:
-                titulo(f'{i} {acoes[i]}', 33)
-
+        # Trabalhar com a resposta
+        for linha in resposta:
+            with col11: 
+                titulo_centralizado('Ação', 35)
             with col22:
-                st.button("➖", key=f"menos_{i}", on_click=decrementar, args=(i,))
+                titulo_centralizado('Quantidade', 35)
+            col11, col22, col33 = st.columns(3)
+            with col11:
+                titulo_centralizado(f"{linha['ticker']}", 33)
+            with col22:
+                titulo_centralizado(f"{linha['quantidade']}", 33)
 
+        with col2:
+            titulo_centralizado('Carteira', 40)
+
+            st.table(dados)
+            
+            titulo_centralizado(f'Saldo disponível: R${round(st.session_state["saldo"],2)}', 24)
+
+
+
+
+
+
+
+    elif option == 'Comprar':
+        # Mostrando ações para comprar
+        with col2:
+            titulo_centralizado(f'Compra de ações:', 40)
+            #st.table(acoes)
+
+            col11, col22, col33, col44, col55 = st.columns([2,2,1,1,1])
+            with col11: 
+                titulo('Código Ação', 35)
+            with col22:
+                titulo('Valor ação', 35)
+            #col11, col22, col33, col44, col55 = st.columns([2,1,1,1,1])  
+            for i in acoes:
+                col11, col22, col33, col44, col55 = st.columns([2,2,1,1,1])
+                with col11:
+                    titulo_centralizado(f'{i}', 33)
+                with col22:
+                    titulo_centralizado(f'R${acoes[i]}', 33)
+                with col33:
+                    titulo('', 24)
+                    st.button("➖", key=f"menos_{i}", on_click=decrementar, args=(i,))
+                with col44:
+                    #titulo('⠀', 3)
+                    titulo_centralizado(f'{st.session_state[f"contador_{i}"]}', 33)
+                with col55:
+                    titulo(' ', 24)
+                    st.button("➕", key=f"mais_{i}", on_click=incrementar, args=(i,))
+            st.divider()
+            col11, col22, col33 = st.columns(3)
+            with col22:
+                titulo(f'Total:', 33)
             with col33:
-                titulo(f'{st.session_state[f"contador_{i}"]}', 33)
+                titulo(f'R${calcular_total():.2f}', 33)
+                col111, col222, col333 = st.columns([0.5,2,1])
+                with col222:
+                    st.button("Comprar", on_click=comprar_acoes)
 
-            with col44:
-                st.button("➕", key=f"mais_{i}", on_click=incrementar, args=(i,))
-        st.button("Comprar", on_click=comprar_acoes, args=(i,))
+    # Mostrando ações para vender
+    elif option == 'Vender':
+        with col2:
+            titulo_centralizado(f'Venda de ações:', 40)
         
 
 
