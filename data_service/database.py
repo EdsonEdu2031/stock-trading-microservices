@@ -33,7 +33,7 @@ def init_db():
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS clientes (
                 id_cliente INTEGER PRIMARY KEY AUTOINCREMENT,
-                nome TEXT NOT NULL,
+                nome TEXT NOT NULL UNIQUE,
                 senha TEXT NOT NULL,
                 saldo REAL NOT NULL DEFAULT 0
                     CHECK (saldo >= 0)
