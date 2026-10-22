@@ -19,71 +19,72 @@ def aviso(mensagem):
     if st.button("Fechar"):
         st.rerun()
 
-def incrementar(i):
-    st.session_state[f"contador_{i}"] += 1
+def incrementar(acao, var, qtd = None):
+    if var == 'vender':
+        if st.session_state[f"contador_{var}_{acao}"] <  qtd:
+            st.session_state[f"contador_{var}_{acao}"] += 1
+    else: 
+        st.session_state[f"contador_{var}_{acao}"] += 1
 
-def decrementar(i):
-    if st.session_state[f"contador_{i}"] > 0:
-        st.session_state[f"contador_{i}"] -= 1
 
-def calcular_total():
+def decrementar(acao, var):
+    if st.session_state[f"contador_{var}_{acao}"] > 0:
+        st.session_state[f"contador_{var}_{acao}"] -= 1
+
+def calcular_total(var):
     total_compra = 0
     for acao in acoes:
-        total_compra += st.session_state[f"contador_{acao}"] * acoes[acao]
+        total_compra += st.session_state[f"contador_{var}_{acao}"] * acoes[acao]
     return round(total_compra, 2)
 
 def comprar_acoes():
-    total_compra = calcular_total()   
+    total_compra = calcular_total('compra')   
 
     if st.session_state["saldo"] < total_compra:
         aviso(f"Saldo insuficiente!")
     else:
         for acao in acoes:
-            if st.session_state[f"contador_{acao}"] == 0:
+            if st.session_state[f"contador_compra_{acao}"] == 0:
                 continue
             resposta = requests.post(
                 f"{API_URL}/comprar",
-                json={"id_carteira": st.session_state["id_cliente"], "ticker": acao, "quantidade": st.session_state[f"contador_{acao}"]},
+                json={"id_carteira": st.session_state["id_cliente"], "ticker": acao, "quantidade": st.session_state[f"contador_{acao}"], "valor": total_compra},
                 timeout=10
             )
             dados_resposta = resposta.json()
+            st.session_state["saldo"] = dados_resposta['saldo']
+            st.session_state[f"contador_compra_{acao}"] = 0
             if dados_resposta['status'] == 200:
                 st.success(f'Compra de {acoes[acao]} para ação {acao} realizado com sucesso!')
             else:
                 aviso("Não foi possível realizar a compra.")
     return
+def vender_acoes():
+    return
 
-dados = {
-    'Ticker': ['Abba', 'Baab'],
-    'Quantidade': [5, 2]
-}
 acoes = {
-    'Abba': 5.82,
-    'Baab': 58.2,
-    'Caac': 582.0
+    'ABBA': 5.82,
+    'BAAB': 58.2,
+    'CAAC': 582.0
 }
-dados = pd.DataFrame(dados)
 
-
-dados['Valor da Ação (R$)'] = dados['Ticker'].map(acoes)
-dados['Valor total (R$)'] = dados['Valor da Ação (R$)'] * dados['Quantidade']
-
-
-for i in acoes:
-    if f"contador_{i}" not in st.session_state:
-        st.session_state[f"contador_{i}"] = 0
+for acao in acoes:
+    for var in ['compra', 'venda']:
+        if f"contador_{var}_{acao}" not in st.session_state:
+            st.session_state[f"contador_{var}_{acao}"] = 0
 
 if "logado" not in st.session_state:
     st.session_state["logado"] = None
 
 if "nome" not in st.session_state:
     st.session_state["nome"] = None
-st.session_state["saldo"] = 1000.00
+
 col1, col2, col3 = st.columns(3)
 if st.session_state["logado"] is None:
     with col2:
-        opcao = st.radio("Acesso", ["Login", "Cadastro"], horizontal=True)
-
+        col11, col22, col33 = st.columns([1, 2, 1])
+        with col22:
+            opcao = st.segmented_control('', options=['Login', 'Cadastro'])
         if opcao == "Login":
             st.title("Login")
 
@@ -93,9 +94,6 @@ if st.session_state["logado"] is None:
                 enviar = st.form_submit_button("Login")
 
             if enviar:
-                #st.session_state["logado"] = True
-                #st.session_state["nome"] = 'Edson'
-                #st.rerun()
                 try:
                     resposta = requests.post(
                         f"{API_URL}/login",
@@ -163,8 +161,10 @@ if st.session_state["logado"] is None:
                     except requests.RequestException:
                         st.error("Não foi possível conectar ao Serviço de Dados.")
 else:
-    titulo_centralizado(f"Bem-vindo(a) {st.session_state['nome']}", 35)
-    option = st.segmented_control('Ferramente para acessar', options=['Carteira', 'Comprar', 'Vender'])
+    col11, col22, col33 = st.columns(3)
+    with col22:
+        titulo(f"Bem-vindo(a) {st.session_state['nome']}", 35)
+        option = st.segmented_control('', options=['Carteira', 'Comprar', 'Vender'])
     
     col1, col2, col3 = st.columns([1, 3, 1])
 
@@ -174,36 +174,37 @@ else:
         dados_resposta = resposta.json()
 
         # Trabalhar com a resposta
-        col11, col22, col33 = st.columns(3)
+        col11, col22, col33, col44 = st.columns(4)
         with col11: 
             titulo_centralizado('Ação', 35)
         with col22:
             titulo_centralizado('Quantidade', 35)
+        with col33:
+            titulo_centralizado('Valor unitário', 35)
+        with col44:
+            titulo_centralizado('Valor total', 35)
         for linha in dados_resposta:
-            col11, col22, col33 = st.columns(3)
+            col11, col22, col33, col44 = st.columns(4)
+            if linha['quantidade'] == 0:
+                continue
             with col11:
                 titulo_centralizado(f"{linha['ticker']}", 33)
             with col22:
                 titulo_centralizado(f"{linha['quantidade']}", 33)
+            with col33:
+                titulo_centralizado(f"{acoes[linha['ticker']]}", 33)
+            with col44:
+                titulo_centralizado(f"{acoes[linha['ticker']]*linha['quantidade']}", 33)
 
         with col2:
             titulo_centralizado('Carteira', 40)
-
-            #st.table(dados)
-            
             titulo_centralizado(f'Saldo disponível: R${round(st.session_state["saldo"],2)}', 24)
-
-
-
-
-
-
 
     elif option == 'Comprar':
         # Mostrando ações para comprar
         with col2:
+            titulo_centralizado(f'Saldo disponível: R${round(st.session_state["saldo"],2)}', 24)
             titulo_centralizado(f'Compra de ações:', 40)
-            #st.table(acoes)
 
             col11, col22, col33, col44, col55 = st.columns([2,2,1,1,1])
             with col11: 
@@ -211,35 +212,78 @@ else:
             with col22:
                 titulo('Valor ação', 35)
             #col11, col22, col33, col44, col55 = st.columns([2,1,1,1,1])  
-            for i in acoes:
+            for acao in acoes:
                 col11, col22, col33, col44, col55 = st.columns([2,2,1,1,1])
                 with col11:
-                    titulo_centralizado(f'{i}', 33)
+                    titulo_centralizado(f'{acao}', 33)
                 with col22:
-                    titulo_centralizado(f'R${acoes[i]}', 33)
+                    titulo_centralizado(f'R${acoes[acao]}', 33)
                 with col33:
                     titulo('', 24)
-                    st.button("➖", key=f"menos_{i}", on_click=decrementar, args=(i,))
+                    st.button("➖", key=f"menos_{acao}", on_click=decrementar, args=(acao,'compra',))
                 with col44:
                     #titulo('⠀', 3)
-                    titulo_centralizado(f'{st.session_state[f"contador_{i}"]}', 33)
+                    titulo_centralizado(f'{st.session_state[f"contador_compra_{acao}"]}', 33)
                 with col55:
                     titulo(' ', 24)
-                    st.button("➕", key=f"mais_{i}", on_click=incrementar, args=(i,))
+                    st.button("➕", key=f"mais_{acao}", on_click=incrementar, args=(acao,'compra',))
             st.divider()
             col11, col22, col33 = st.columns(3)
             with col22:
                 titulo(f'Total:', 33)
             with col33:
-                titulo(f'R${calcular_total():.2f}', 33)
+                titulo(f"R${calcular_total('compra'):.2f}", 33)
                 col111, col222, col333 = st.columns([0.5,2,1])
                 with col222:
                     st.button("Comprar", on_click=comprar_acoes)
 
     # Mostrando ações para vender
     elif option == 'Vender':
+
+        resposta = requests.get(f"{API_URL}/carteiras/{st.session_state['id_cliente']}", timeout=10)
+        dados_resposta = resposta.json()
+        
         with col2:
             titulo_centralizado(f'Venda de ações:', 40)
-        
+
+        col11, col22, col33, col44, col55, col66 = st.columns([2,2,2,1,1,1])
+        with col11: 
+            titulo_centralizado('Ação', 35)
+        with col22:
+            titulo_centralizado('Quantidade', 35)
+        with col33:
+            titulo_centralizado('Valor unitário', 35)
+        for linha in dados_resposta:
+            acao = linha['ticker']
+            qtd = linha['quantidade']
+            col11, col22, col33, col44, col55, col66 = st.columns([2,2,2,1,1,1])
+            if qtd == 0:
+                continue
+            with col11:
+                titulo_centralizado(f"{acao}", 33)
+            with col22:
+                titulo_centralizado(f"{qtd}", 33)
+            with col33:
+                titulo_centralizado(f"{acoes[acao]}", 33)
+            with col44:
+                titulo('', 24)
+                st.button("➖", key=f"menos_venda_{acao}", on_click=decrementar, args=(acao, 'venda',))
+            with col55:
+                #titulo('⠀', 3)
+                titulo_centralizado(f'{st.session_state[f"contador_venda_{acao}"]}', 33)
+            with col66:
+                titulo(' ', 24)
+                st.button("➕", key=f"mais_venda_{acao}", on_click=incrementar, args=(acao,'venda', qtd,))
+        st.divider()
+        col11, col22, col33 = st.columns(3)
+        with col22:
+            titulo(f'Total:', 33)
+        with col33:
+            titulo(f"R${calcular_total('venda'):.2f}", 33)
+            col111, col222, col333 = st.columns([0.5,2,1])
+            with col222:
+                st.button("Vender", on_click=vender_acoes)
 
 
+# Arrumar o contador do vender
+# Fazer a função do vender
