@@ -25,6 +25,7 @@ class Carteira(BaseModel):
     id_carteira: int
     ticker: str
     quantidade: int = Field(ge=0)
+    valor: float = Field(ge=0)
 
 class Login(BaseModel):
     nome: str
@@ -82,9 +83,20 @@ def comprar_ativo(compra: Carteira):
                 ON CONFLICT(id_carteira, ticker) DO UPDATE SET quantidade = quantidade + excluded.quantidade""",
                 (compra.id_carteira, compra.ticker.strip().upper(), compra.quantidade)
             )
+
+            cursor = conn.execute(
+                "UPDATE clientes SET saldo = saldo - ? WHERE id_cliente = ?",
+                (compra.valor, compra.id_carteira)
+            )
+
             conn.commit()
 
-            return {"status": 200}
+            cursor = conn.execute(
+                "SELECT saldo FROM clientes WHERE id_cliente = ?",
+                (compra.id_carteira)
+            ).fetchone()
+
+            return {"saldo": cursor["saldo"], "status": 200}
         except:
             return {"status": 401}
         
@@ -102,9 +114,20 @@ def vender_ativo(operacao: Carteira):
                 "DELETE FROM ativos_carteira WHERE id_carteira = ? AND ticker = ? AND quantidade <= 0",
                 (operacao.id_carteira, operacao.ticker.strip().upper())
             )
+
+            cursor = conn.execute(
+                "UPDATE clientes SET saldo = saldo + ? WHERE id_cliente = ?",
+                (operacao.valor, operacao.id_carteira)
+            )
+            
             conn.commit()
 
-            return {"status": 200}
+            cursor = conn.execute(
+                "SELECT saldo FROM clientes WHERE id_cliente = ?",
+                (operacao.id_carteira)
+            ).fetchone()
+
+            return {"saldo": cursor["saldo"], "status": 200}
         except:
             return {"status": 401}
 
