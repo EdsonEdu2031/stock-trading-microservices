@@ -24,9 +24,6 @@ def incrementar(acao, var, qtd = None):
         if st.session_state[f"contador_{var}_{acao}"] <  qtd:
             st.session_state[f"contador_{var}_{acao}"] += 1
     else: 
-        #if st.session_state[f"contador_venda_{acao}"] > qtd:
-        #    aviso(f"Você está tantando vender mais ações do que possui da ação {acao}.")
-        #else:
         st.session_state[f"contador_{var}_{acao}"] += 1
 
 def decrementar(acao, var):
@@ -80,8 +77,6 @@ def vender_acoes():
     st.session_state["dados_resposta"] = None
     return
 
-
-
 acoes = {
     'ABBA': 5.82,
     'BAAB': 58.2,
@@ -99,45 +94,16 @@ if "logado" not in st.session_state:
 if "nome" not in st.session_state:
     st.session_state["nome"] = None
 
+if "dados_resposta" not in st.session_state:
+    st.session_state["dados_resposta"] = None
+
 col1, col2, col3 = st.columns(3)
 if st.session_state["logado"] is None:
     with col2:
         col11, col22, col33 = st.columns([1, 2, 1])
         with col22:
             opcao = st.segmented_control('', options=['Login', 'Cadastro'])
-        if opcao == "Login":
-            st.title("Login")
-
-            with st.form("form_login"):
-                nome = st.text_input("Digite o seu nome:", placeholder="Fulano de tal")
-                senha = st.text_input("Digite sua senha:", type="password", placeholder="Senha")
-                enviar = st.form_submit_button("Login")
-
-            if enviar:
-                try:
-                    resposta = requests.post(
-                        f"{API_URL}/login",
-                        json={"nome": nome.strip(), "senha": senha},
-                        timeout=10
-                    )
-                    dados_resposta = resposta.json()
-                    if dados_resposta['status'] == 200:
-                        st.session_state["logado"] = True
-                        st.session_state["nome"] = dados_resposta['nome']
-                        st.session_state["id_cliente"] = dados_resposta['id_cliente']
-                        st.session_state["saldo"] = dados_resposta['saldo']
-                        st.rerun()
-
-                    elif dados_resposta['status'] == 401:
-                        st.error("Nome ou senha inválidos. Tente novamente!")
-
-                    else:
-                        st.error("Não foi possível realizar o login.")
-
-                except requests.RequestException:
-                    st.error("Não foi possível conectar ao Serviço de Dados.")
-
-        else:
+        if opcao == 'Cadastro':
             st.title("Cadastro")
 
             with st.form("form_cadastro"):
@@ -180,11 +146,43 @@ if st.session_state["logado"] is None:
 
                     except requests.RequestException:
                         st.error("Não foi possível conectar ao Serviço de Dados.")
+
+        else:
+            st.title("Login")
+
+            with st.form("form_login"):
+                nome = st.text_input("Digite o seu nome:", placeholder="Fulano de tal")
+                senha = st.text_input("Digite sua senha:", type="password", placeholder="Senha")
+                enviar = st.form_submit_button("Login")
+
+            if enviar:
+                try:
+                    resposta = requests.post(
+                        f"{API_URL}/login",
+                        json={"nome": nome.strip(), "senha": senha},
+                        timeout=10
+                    )
+                    dados_resposta = resposta.json()
+                    if dados_resposta['status'] == 200:
+                        st.session_state["logado"] = True
+                        st.session_state["nome"] = dados_resposta['nome']
+                        st.session_state["id_cliente"] = dados_resposta['id_cliente']
+                        st.session_state["saldo"] = dados_resposta['saldo']
+                        st.rerun()
+
+                    elif dados_resposta['status'] == 401:
+                        st.error("Nome ou senha inválidos. Tente novamente!")
+
+                    else:
+                        st.error("Não foi possível realizar o login.")
+
+                except requests.RequestException:
+                    st.error("Não foi possível conectar ao Serviço de Dados.")
 else:
     col11, col22, col33 = st.columns(3)
     with col22:
         titulo(f"Bem-vindo(a) {st.session_state['nome']}", 35)
-        option = st.segmented_control('', options=['Carteira', 'Comprar', 'Vender'])
+        option = st.segmented_control('', options=['Carteira', 'Comprar', 'Vender', 'Sair', 'Relatório'])
     
     col1, col2, col3 = st.columns([1, 3, 1])
 
@@ -311,3 +309,8 @@ else:
             col111, col222, col333 = st.columns([0.5,2,1])
             with col222:
                 st.button("Vender", on_click=vender_acoes)
+    elif option == 'Sair':
+        st.session_state["logado"] = None
+        st.rerun()
+    elif option == 'Relatório':
+        titulo_centralizado('Tá implementado ainda não otaru.', 33)

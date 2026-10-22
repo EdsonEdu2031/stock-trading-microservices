@@ -57,20 +57,5 @@ def init_db():
                     REFERENCES carteiras(id_carteira)
                     ON DELETE CASCADE
             );
-            
-            CREATE TABLE IF NOT EXISTS operacoes (
-                id_operacao INTEGER PRIMARY KEY AUTOINCREMENT,
-                id_carteira INTEGER NOT NULL,
-                ticker TEXT NOT NULL,
-                tipo TEXT NOT NULL
-                    CHECK (tipo IN ('COMPRA', 'VENDA')),
-                quantidade INTEGER NOT NULL
-                    CHECK (quantidade > 0),
-                preco_unitario REAL NOT NULL
-                    CHECK (preco_unitario >= 0),
-                data_hora TEXT NOT NULL
-                    DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (id_carteira)
-                    REFERENCES carteiras(id_carteira)
-            );
+        
         """)
