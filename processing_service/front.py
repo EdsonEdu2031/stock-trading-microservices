@@ -39,12 +39,15 @@ def comprar_acoes():
         aviso(f"Saldo insuficiente!")
     else:
         for acao in acoes:
+            if st.session_state[f"contador_{acao}"] == 0:
+                continue
             resposta = requests.post(
                 f"{API_URL}/comprar",
-                json={"id_carteira": st.session_state["id_cliente"], "ticker": acao, "quantidade": acoes[acao]},
+                json={"id_carteira": st.session_state["id_cliente"], "ticker": acao, "quantidade": st.session_state[f"contador_{acao}"]},
                 timeout=10
             )
-            if resposta.status == 200:
+            dados_resposta = resposta.json()
+            if dados_resposta['status'] == 200:
                 st.success(f'Compra de {acoes[acao]} para ação {acao} realizado com sucesso!')
             else:
                 aviso("Não foi possível realizar a compra.")
@@ -90,24 +93,24 @@ if st.session_state["logado"] is None:
                 enviar = st.form_submit_button("Login")
 
             if enviar:
-                st.session_state["logado"] = True
-                st.session_state["nome"] = 'Edson'
-                st.rerun()
+                #st.session_state["logado"] = True
+                #st.session_state["nome"] = 'Edson'
+                #st.rerun()
                 try:
                     resposta = requests.post(
                         f"{API_URL}/login",
                         json={"nome": nome.strip(), "senha": senha},
                         timeout=10
                     )
-
-                    if resposta.status == 200:
+                    dados_resposta = resposta.json()
+                    if dados_resposta['status'] == 200:
                         st.session_state["logado"] = True
-                        st.session_state["nome"] = resposta.nome
-                        st.session_state["id_cliente"] = resposta.id_cliente
-                        st.session_state["saldo"] = resposta.saldo
+                        st.session_state["nome"] = dados_resposta['nome']
+                        st.session_state["id_cliente"] = dados_resposta['id_cliente']
+                        st.session_state["saldo"] = dados_resposta['saldo']
                         st.rerun()
 
-                    elif resposta.status == 401:
+                    elif dados_resposta['status'] == 401:
                         st.error("Nome ou senha inválidos. Tente novamente!")
 
                     else:
@@ -143,16 +146,16 @@ if st.session_state["logado"] is None:
                             },
                             timeout=10
                         )
-
-                        if resposta.status == 201:
+                        dados_resposta = resposta.json()
+                        if dados_resposta['status'] == 201:
                             st.success("Cadastro realizado!")
                             st.session_state["logado"] = True
-                            st.session_state["nome"] = resposta.nome
-                            st.session_state["id_cliente"] = resposta.id_cliente
-                            st.session_state["saldo"] = resposta.saldo
+                            st.session_state["nome"] = dados_resposta['nome']
+                            st.session_state["id_cliente"] = dados_resposta['id_cliente']
+                            st.session_state["saldo"] = dados_resposta['saldo']
                             st.rerun()
 
-                        elif resposta.status == 409:
+                        elif dados_resposta['status'] == 409:
                             st.error("Já existe um cliente com esse nome.")
                         else:
                             st.error("Não foi possível realizar o cadastro.")
@@ -167,14 +170,16 @@ else:
 
     if option == 'Carteira':
         # Mostrando Carteira
-        resposta = requests.get(f"{API_URL}/carteira/{st.session_state['id_cliente']}", timeout=10)
+        resposta = requests.get(f"{API_URL}/carteiras/{st.session_state['id_cliente']}", timeout=10)
+        dados_resposta = resposta.json()
 
         # Trabalhar com a resposta
-        for linha in resposta:
-            with col11: 
-                titulo_centralizado('Ação', 35)
-            with col22:
-                titulo_centralizado('Quantidade', 35)
+        col11, col22, col33 = st.columns(3)
+        with col11: 
+            titulo_centralizado('Ação', 35)
+        with col22:
+            titulo_centralizado('Quantidade', 35)
+        for linha in dados_resposta:
             col11, col22, col33 = st.columns(3)
             with col11:
                 titulo_centralizado(f"{linha['ticker']}", 33)
@@ -184,7 +189,7 @@ else:
         with col2:
             titulo_centralizado('Carteira', 40)
 
-            st.table(dados)
+            #st.table(dados)
             
             titulo_centralizado(f'Saldo disponível: R${round(st.session_state["saldo"],2)}', 24)
 
