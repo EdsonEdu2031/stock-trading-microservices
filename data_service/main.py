@@ -43,7 +43,7 @@ def logar(login: Login):
             ).fetchone()
 
             if not cursor:
-                return 401
+                return {"status": 401}
 
             if cursor:
                 return {"id_cliente": cursor["id_cliente"], "nome": cursor["nome"],"saldo": cursor["saldo"], "status": 200}
@@ -59,14 +59,19 @@ def cadastro_cliente(cliente: Cliente):
                 (cliente.nome, cliente.senha, cliente.saldo)
             )
             id_cliente = cursor.lastrowid
-    
+
             cursor = conn.execute(
                 "INSERT INTO carteiras (id_cliente) VALUES (?)",
                 (id_cliente,)
             )
-    
-            return {"id_cliente": cursor["id_cliente"], "nome": cursor["nome"],"saldo": cursor["saldo"], "status": 201}
+            id_carteira = cursor.lastrowid
+
+            conn.commit()
+
+            return {"id_cliente": id_cliente, "id_carteira": id_carteira, "nome": cliente.nome, "saldo": cliente.saldo, "status": 201}
+
         except sqlite3.IntegrityError:
+            conn.rollback()
             return {"status": 409}
 
 
@@ -93,7 +98,7 @@ def comprar_ativo(compra: Carteira):
 
             cursor = conn.execute(
                 "SELECT saldo FROM clientes WHERE id_cliente = ?",
-                (compra.id_carteira)
+                (compra.id_carteira,)
             ).fetchone()
 
             return {"saldo": cursor["saldo"], "status": 200}
@@ -124,7 +129,7 @@ def vender_ativo(operacao: Carteira):
 
             cursor = conn.execute(
                 "SELECT saldo FROM clientes WHERE id_cliente = ?",
-                (operacao.id_carteira)
+                (operacao.id_carteira,)
             ).fetchone()
 
             return {"saldo": cursor["saldo"], "status": 200}
