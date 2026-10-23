@@ -12,9 +12,9 @@ services:
     build: ./processing_service
     container_name: stock_processing_service
     ports:
-      - "${PROCESSING_SERVICE_PORT}:${PROCESSING_SERVICE_PORT}"
+      - "${PROCESSING_SERVICE_PORT:-8501}:${PROCESSING_SERVICE_PORT:-8501}"
     environment:
-      API_URL: ${API_URL}
+      API_URL: ${API_URL:-http://data_service:8000}
     depends_on:
       - data_service
     restart: unless-stopped
@@ -26,7 +26,7 @@ services:
       - "8002:8002"
     environment:
       - DATA_SERVICE_URL=http://data_service:8000
-      - PROCESSING_SERVICE_URL=http://stock_processing_service:${PROCESSING_SERVICE_PORT}
+      - PROCESSING_SERVICE_URL=http://stock_processing_service:${PROCESSING_SERVICE_PORT:-8501}
     depends_on:
       - data_service
       - processing_service
