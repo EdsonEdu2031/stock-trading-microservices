@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import pandas as pd
 import os
+from stocks import obter_cotacao
 
 API_URL = os.getenv("API_URL", "http://localhost:8001")
 
@@ -78,11 +79,21 @@ def vender_acoes():
     st.session_state["dados_resposta"] = None
     return
 
-acoes = {
-    'ABBA': 5.82,
-    'BAAB': 58.2,
-    'CAAC': 582.0
-}
+@st.cache_data(ttl=60)
+def carregar_acoes():
+    acoes = {}
+
+    for ticker in ["PETR4", "VALE3", "ABEV3", "ITUB4", "BBAS3"]:
+        try:
+            cotacao = obter_cotacao(ticker)
+            acoes[ticker] = cotacao["preco"]
+        except Exception:
+            continue
+
+    return acoes
+
+
+acoes = carregar_acoes()
 
 for acao in acoes:
     for var in ['compra', 'venda']:

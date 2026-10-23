@@ -1,14 +1,12 @@
 services:
   data_service:
     build: ./data_service
-    container_name: stock_data_service
     ports:
-      - "8001:${DATA_SERVICE_PORT}"
+      - "8001:8000"
     environment:
-      DB_PATH: ${DB_PATH}
+      DB_PATH: /app/data_service/stock.db
     volumes:
-      - stock_data:/app/data
-    restart: unless-stopped
+      - ./data_service:/app/data_service
 
   processing_service:
     build: ./processing_service
