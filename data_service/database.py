@@ -3,30 +3,14 @@ import os
 import sqlite3
 from pathlib import Path
 
-DATABASE_PATH = os.getenv(
-    "DATABASE_PATH",
-    "data/stocks.db"
-)
+DB_PATH = os.getenv("DB_PATH", "stock.db")
 
+Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
 
 def get_connection():
-    # Cria o diretório do banco, se necessário.
-    Path(DATABASE_PATH).parent.mkdir(
-        parents=True,
-        exist_ok=True
-    )
-
-    conn = sqlite3.connect(
-        DATABASE_PATH,
-        timeout=30
-    )
-
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA busy_timeout = 30000")
-
     return conn
-
 
 def init_db():
     with get_connection() as conn:

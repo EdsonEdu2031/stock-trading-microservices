@@ -1,8 +1,9 @@
 import streamlit as st
 import requests
 import pandas as pd
+import os
 
-API_URL = "http://localhost:8001"
+API_URL = os.getenv("API_URL", "http://localhost:8001")
 
 st.set_page_config(page_title = "Sistema de Venda de ações", layout="wide")
 
