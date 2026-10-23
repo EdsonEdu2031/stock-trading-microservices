@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as cp
 import requests
 import pandas as pd
 import os
@@ -324,5 +325,10 @@ else:
     elif option == 'Sair':
         st.session_state["logado"] = None
         st.rerun()
+    #relatório
     elif option == 'Relatório':
-        titulo_centralizado('Tá implementado ainda não otaru.', 33)
+        user_id = st.session_state.get("id_cliente")
+        report_url = f"http://localhost:8002/reports/html/{user_id}"
+        cp.iframe(report_url, height=600, scrolling=True)
+
+

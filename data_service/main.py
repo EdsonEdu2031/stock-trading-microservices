@@ -74,9 +74,35 @@ def cadastro_cliente(cliente: Cliente):
             conn.rollback()
             return {"status": 409}
 
+#para relatório
+@app.get("/cliente/{id_cliente}")
+def buscar_cliente(id_cliente: int):
+    with get_connection() as conn:
+        cursor = conn.execute(
+            "SELECT id_cliente, nome, saldo FROM clientes WHERE id_cliente = ?",
+            (id_cliente,)
+        ).fetchone()
+        
+        if not cursor:
+            raise HTTPException(status_code=404, detail="Cliente não encontrado")
+            
+        return {
+            "id_cliente": cursor["id_cliente"],
+            "nome": cursor["nome"],
+            "saldo": cursor["saldo"]
+        }
 
-
-
+@app.get("/carteira/{id_cliente}")
+def buscar_carteira(id_cliente: int):
+    with get_connection() as conn:
+        cursor = conn.execute("""
+            SELECT ac.ticker, ac.quantidade 
+            FROM ativos_carteira ac
+            JOIN carteiras c ON c.id_carteira = ac.id_carteira
+            WHERE c.id_cliente = ?
+        """, (id_cliente,)).fetchall()
+        
+        return [{"ticker": row["ticker"], "quantidade": row["quantidade"]} for row in cursor]
 
 # Operações
 @app.post("/comprar")
